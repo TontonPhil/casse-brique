@@ -3,7 +3,7 @@
   <head>
     <script src="https://unpkg.com/konva@7.2.5/konva.js"></script>
     <meta charset="utf-8" />
-    <title>Test Drag & Drop</title>
+    <title>Casse-brique</title>
     <style>
       body {
         margin: 0;
@@ -11,9 +11,164 @@
         overflow: hidden;
         background-color:antiquewhite ;
       }
+/*       .container {
+        background-color: bisque;
+        width: 700px ;
+        height: 800px;
+      } */ 
     </style>
   </head>
 
   <body>
     <div id="container"></div>
-    <script></script>
+    <script>
+      var stage = new Konva.Stage({
+        container: 'container',
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+
+      // TODO peut-être 2 couches une pour les balles et une pour les cubes
+      var layer = new Konva.Layer();
+      stage.add(layer);
+
+      class Balle extends Konva.Circle {
+        direction = {x:0 , y:0};
+        // Balle ({x: , y: })
+        constructor(balle_position){
+          super({
+            x: balle_position.x,
+            y: balle_position.y,
+            radius: 8,
+            fill: 'blue'
+          })
+        }
+        // set the initial direction or the new direction.
+        setDirection (newDirection) {
+          this.direction = newDirection;
+        }
+        // move ball, at the speed ratio
+        displace(speed) {
+          var xOffset = this.direction.x * speed;
+          var yOffset = this.direction.y * speed;
+          this.move({x: xOffset, y: yOffset});
+        }
+
+      }
+
+      // on créé le bon nombre balles au milieu
+      nb_balles = 10;
+      // on créé toutes les variables globales qui seront utilisées lors de l'animation
+      liste_balles =[]
+      liste_waitingBalls = []; // so empty, but variable is defined
+      liste_runningBalls = []; // so empty, but variable is defined
+      ratioVitesse = 1 ; // la vitesse initiale de déplacement des balles
+      TempoDepartBalles = 500 ; // nb de millisecondes entre le départ de 2 balles
+      prevBallLaunchTime = 0 ; // date de l'envoie de la frame précédente
+      nbFrame = 0 ; // nb de frame depuis le début
+      // fin des variables globales 
+      balle_position = {x: 400, y: 600}
+      for (let index = 0; index < nb_balles; index++) {
+        ball = new Balle(balle_position);
+        liste_balles.push(ball)  
+        layer.add(ball)
+      }
+
+      // debut animation, on choisi un angle de départ
+      // quand on relache le bouton les balles se lancent
+
+      function clearPrevDirectionLine (stage) {
+        var prevLine = stage.find('.initialDirection')
+        if (prevLine.length > 1 ) {
+          debugger;
+        }
+        if (prevLine.length > 0 ) {
+          // on détruit la ligne précédente
+          prevLine[0].destroy();
+        }
+      }
+
+      // handler qui permet d'afficher la direction initiale pour lancer les balles
+      function initDirectionHandler(kevent) {
+        var y = kevent.evt.clientY;
+        //console.print(evt.clientX)
+        var x = kevent.evt.clientX;  
+        clearPrevDirectionLine (stage);
+        // TODO a traiter le cas ou on pointe en dessous de la ligne de départ
+        var dottedLine = new Konva.Line({
+          points: [balle_position.x, balle_position.y , x , y],
+          dash: [10,10],
+          stroke: 'green',
+          strokeWidth: 2,
+          name: 'initialDirection'
+        });
+        layer.add(dottedLine);
+        layer.draw();
+      };
+
+      // handler to initiate ball launching (once button is depressed)
+      function LaunchAnimation(kevent) {
+        // remove the 2 current handlers
+        stage.off('mousemove mouseup');
+        var y = kevent.evt.clientY;
+        var x = kevent.evt.clientX;  
+        clearPrevDirectionLine (stage); // on efface la ligne précédente
+        // on définit la direction initiale pour toutes les balles - la direction est normalisée
+        var dirXtemp = x- balle_position.x  ;
+        var dirYtemp = y - balle_position.y  ;
+        var ratio = Math.sqrt(dirXtemp*dirXtemp + dirYtemp*dirYtemp);
+        var initDirection = {x: dirXtemp/ratio, y: dirYtemp/ratio};
+        liste_balles.forEach(balle => {
+          balle.setDirection(initDirection);
+        });
+        liste_waitingBalls = liste_balles.slice(); // copy the list
+        prevBallLaunchTime = Date.now() - 10000 ; // on enleve 10 000 ms pour être sur de faire partir la 1er balle maintenant
+        // on lance la boucle d'animation - sans délais
+        setTimeout(animateCasseBrique,0);
+        stage.draw();
+      }
+
+      stage.on('mousemove',initDirectionHandler);
+      stage.on('mouseup',LaunchAnimation);
+
+      // la boucle d'animation asynchrone, on utilise un contexte pour éviter les variables globales.
+      function animateCasseBrique() {
+        // on met en queue le prochain appel pour avoir une durée constante.
+        setTimeout(animateCasseBrique,40,); // 25 frames par seconde
+        var currentTime = Date.now();
+        // est-ce qu'il y a encore des balles a lancer ?
+        if (liste_waitingBalls.length > 0 && (currentTime - prevBallLaunchTime > TempoDepartBalles )) {
+          // on lance la balle suivante
+//          console.log(currentTime - prevBallLaunchTime);
+          var balle = liste_waitingBalls.shift()
+          liste_runningBalls.push(balle);
+          prevBallLaunchTime = currentTime;
+        }
+        // on déplace les balles
+        liste_runningBalls.forEach(balle => {
+          balle.displace(ratioVitesse*5); // j'ai pris 3 par hasard
+        })
+        // TODO, il faut regarder les intersections avec les objets (pour rebond)
+
+        // on affiche tout
+        stage.draw();
+      }
+
+      
+      layer.add (new Konva.Rect({
+                x: 20,
+                y: 20,
+                width: 50,
+                height: 25,
+                fill: 'green',
+                stroke: 'black',
+                strokeWidth: 3
+            }));
+      a = 10;
+      stage.draw();
+      // boucle d'animation
+
+
+    </script>
+  </body>
+</html>
