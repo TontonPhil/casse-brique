@@ -28,12 +28,48 @@
         height: window.innerHeight
       });
 
-      // TODO peut-être 2 couches une pour les balles et une pour les cubes
+      // TODO peut-être 2 couches une pour les balles et une pour les briques
       var layer = new Konva.Layer();
       stage.add(layer);
 
+      class Terrain {
+        // constructeur qui donne la dimension, et éventuellement une clef de génération de la position des briques.
+        hauteur = 0;
+        largeur = 0;
+        constructor(largeur,hauteur,key) {
+          this.largeur = largeur;
+          this.hauteur = hauteur;
+        }
+        // fonction qui vérifie que la balle est toujours dans le terrain et la fait rebondir le cas échéant
+        // return false if the ball is out 
+        dansLeTerrain(balle) {
+          // on prend en compte le rayon de la balle
+/*           var pos = JSON.stringify(balle.position());
+          var absPos = JSON.stringify(balle.absolutePosition());
+          console.log ("postion %s, absolute %s",pos,absPos) */
+          var x = balle.position().x;
+          var y = balle.position().y;
+          // les cotés
+          if ( (x - balle.rayon) < 0 || (x + balle.rayon) > this.largeur ) {
+            // la balle rebondit
+            balle.direction.x = - balle.direction.x;
+          }
+          // le haut 
+          if (y - balle.rayon <0 ) {
+            balle.direction.y = - balle.direction.y
+          }
+          // le bas (sortie de terrain)
+          if (y - balle.rayon > this.hauteur ) { // on quand la balle est completement sortie
+          // TODO, si il y a un flag rebondissant, il faudrait vérifier à l'interieur de la balle
+            return false;
+          }
+          return true;
+        }
+      }
+
       class Balle extends Konva.Circle {
         direction = {x:0 , y:0};
+        rayon = 8; // TODO le rayon est recopié en dur dans le constructeur
         // Balle ({x: , y: })
         constructor(balle_position){
           super({
@@ -45,7 +81,7 @@
         }
         // set the initial direction or the new direction.
         setDirection (newDirection) {
-          this.direction = newDirection;
+          this.direction = Object.assign({},newDirection); // on fait une copie et non pas une référence
         }
         // move ball, at the speed ratio
         displace(speed) {
@@ -66,8 +102,9 @@
       TempoDepartBalles = 500 ; // nb de millisecondes entre le départ de 2 balles
       prevBallLaunchTime = 0 ; // date de l'envoie de la frame précédente
       nbFrame = 0 ; // nb de frame depuis le début
-      // fin des variables globales 
+      terrain = new Terrain(800,600);
       balle_position = {x: 400, y: 600}
+      // fin des variables globales 
       for (let index = 0; index < nb_balles; index++) {
         ball = new Balle(balle_position);
         liste_balles.push(ball)  
@@ -134,7 +171,7 @@
       // la boucle d'animation asynchrone, on utilise un contexte pour éviter les variables globales.
       function animateCasseBrique() {
         // on met en queue le prochain appel pour avoir une durée constante.
-        setTimeout(animateCasseBrique,40,); // 25 frames par seconde
+        setTimeout(animateCasseBrique,20,); // 50 frames par seconde
         var currentTime = Date.now();
         // est-ce qu'il y a encore des balles a lancer ?
         if (liste_waitingBalls.length > 0 && (currentTime - prevBallLaunchTime > TempoDepartBalles )) {
@@ -146,10 +183,21 @@
         }
         // on déplace les balles
         liste_runningBalls.forEach(balle => {
-          balle.displace(ratioVitesse*5); // j'ai pris 3 par hasard
+          balle.displace(ratioVitesse*8); // j'ai pris 3 par hasard
+          // on s'assure qu'elle est toujours dans le terrain.
+          if (! terrain.dansLeTerrain(balle)) {
+            // la balle est sortie par en bas, on l'enleve des balles présentes
+            index = liste_runningBalls.indexOf(balle);
+            liste_runningBalls.splice(index,1)
+            // est-ce qu'il reste encore des balles ?
+            if (liste_runningBalls.length <= 0) {
+              debugger; // toutes les balles sont perdues
+            }
+          }
         })
+        
         // TODO, il faut regarder les intersections avec les objets (pour rebond)
-
+        
         // on affiche tout
         stage.draw();
       }
